@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from "react";
 import personServices from "./services/personsService";
 
+const Notification = ({ result }) => {
+  if (result === null) {
+    return null;
+  }
+  return (
+    <div className={result.result ? result.result : "failure"}>
+      {result.message}
+    </div>
+  );
+};
+
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [newFilter, setNewFilter] = useState("");
+  const [result, setResult] = useState({
+    message: "testing",
+    result: "success",
+  });
 
   useEffect(() => {
     personServices.getAll().then((persons) => {
@@ -23,6 +38,7 @@ const App = () => {
         )
       ) {
         const changedPerson = { ...user[0], number: newNumber };
+
         personServices
           .update(changedPerson.id, changedPerson)
           .then((returnedUser) => {
@@ -31,21 +47,47 @@ const App = () => {
                 person.name !== returnedUser.name ? person : changedPerson
               )
             );
+            setResult({
+              message: `Replaced ${returnedUser.name}'s number'`,
+              result: "success",
+            });
+            setTimeout(() => {
+              setResult(null);
+            }, 5000);
+            return returnedUser;
+          })
+          .catch((error) => {
+            const newResult = {
+              message: `Information of ${changedPerson.name} has already been deleted`,
+              result: "failure",
+            };
+            setResult(newResult);
+            setTimeout(() => {
+              setResult(null);
+            }, 5000);
+            setPersons(
+              persons.filter((person) => person.name !== changedPerson.name)
+            );
           });
-
-        setNewName("");
-        setNewNumber("");
-        return false;
       }
-
+    } else {
       const newPersonObj = {
         name: newName,
         number: newNumber,
       };
 
-      personServices.add(newPersonObj).then((person) => {
-        setPersons(persons.concat(person));
-      });
+      personServices
+        .add(newPersonObj)
+        .then((person) => {
+          setPersons(persons.concat(person));
+          return person;
+        })
+        .then((person) => {
+          setResult({ message: `Added ${person.name} `, result: "success" });
+          setTimeout(() => {
+            setResult(null);
+          }, 5000);
+        });
       setNewName("");
       setNewNumber("");
     }
@@ -68,7 +110,6 @@ const App = () => {
       const user = persons.find((person) => person.id === id);
       if (window.confirm(`Delete ${user.name} `)) {
         personServices.remove(id).then((removedUser) => {
-          console.log(removedUser);
           setPersons(
             persons.filter((person) => {
               return person.name !== user.name;
@@ -81,6 +122,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification result={result} />
       filter shown with{" "}
       <Filter value={newFilter} onChange={handleFilterChange} />
       <h2>add a new</h2>
